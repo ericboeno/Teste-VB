@@ -25,6 +25,8 @@
         <span class="separator">|</span>
         <label for="taktTime">Takt Time (segundos):</label>
         <input type="number" id="taktTime" value="45" min="1">
+        <span class="separator">|</span>
+        <button id="goToPacoPacoBtn">Ir para Paco-Paco</button>
     </div>
 
     <div class="main-layout-container">
@@ -254,6 +256,14 @@
         <div class="right-panel connector-palette" id="connector-palette">
             <h2>Conectores</h2>
         </div>
+    </div>
+
+    <div class="report-controls-and-area">
+        <div class="report-buttons">
+            <button id="gerarRelatorioBtn">Gerar Relatório Detalhado</button>
+            <button id="limparRelatorioBtn">Limpar Relatório</button>
+        </div>
+        <div id="report-area"></div>
     </div>
 
     <script src="script.js"></script>

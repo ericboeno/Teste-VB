@@ -9,6 +9,12 @@
     --light-text: #f0f0f0;
     --medium-gray: #444;
     --light-gray: #2c2c2c;
+
+    /* Novas cores para o pente */
+    --clamp-blue: #007bff; /* Azul para "baixar" */
+    --clamp-green: #28a745; /* Verde para "puxar" */
+    --clamp-border-empty: #555;
+    --clamp-background-empty: rgba(255, 255, 255, 0.05);
 }
 
 body {
@@ -276,7 +282,7 @@ h2 {
     flex-direction: column; /* Postos ainda empilhados verticalmente */
     gap: 30px;
     box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
-    overflow-x: auto; /* Adicionado para permitir rolagem horizontal no painel central */
+    overflow-x: auto; /* Permite rolagem horizontal no painel central */
 }
 
 .posto-container {
@@ -307,6 +313,7 @@ h2 {
     width: 100%;
     padding-bottom: 12px;
     border-bottom: 1px dashed #555;
+    position: relative; /* Para posicionar o botão "Ir para Paco-Paco deste Posto" */
 }
 
 .posto-header h3 {
@@ -317,21 +324,42 @@ h2 {
     font-weight: 700;
 }
 
-/* IMPORTANTE: Este é o bloco que controla o layout dos conectores dentro de CADA posto */
+/* IMPORTANTE: Este é o bloco que controla o layout dos elementos dentro de CADA posto */
 .posto-content {
-    display: flex; /* Habilita Flexbox para os conectores */
-    flex-wrap: nowrap; /* ALTERADO: Impede que os conectores quebrem para a próxima linha */
-    flex-direction: row; /* Conectores dispostos em linha */
-    justify-content: flex-start; /* Alinha os conectores ao início da linha */
-    align-items: flex-start; /* Alinha os conectores ao topo da linha */
-    align-content: flex-start; /* Alinha linhas de conteúdo ao topo (mesmo com nowrap, ajuda consistência) */
+    display: flex; /* Habilita o Flexbox */
+    flex-direction: row; /* ALTERADO: Coloca os itens lado a lado */
+    flex-wrap: nowrap; /* NOVO: Impede a quebra de linha */
+    align-items: flex-start; /* Alinha os itens pelo topo */
+    width: 100%;
+    min-height: 120px; /* Garante altura mínima para o conteúdo */
     gap: 20px; /* Espaço entre os conectores */
-    width: 100%; /* Ocupa 100% da largura do posto-container */
-    min-height: 120px;
-    overflow-x: auto; /* Adicionado para permitir rolagem horizontal se o conteúdo for maior que a largura disponível */
+    overflow-x: auto; /* NOVO: Adiciona barra de rolagem horizontal */
+    padding-bottom: 10px; /* Espaço para a barra de rolagem não sobrepor o conteúdo */
 }
 
-.posto-content.drag-over-posto {
+/* Área para os conectores dentro do posto */
+/* Este estilo pode ser mesclado com .posto-content ou removido se .posto-content já o controla */
+/* Como .posto-content agora controla o layout dos conectores, esta regra pode ser menos relevante */
+/* ou precisar ser reavaliada se houver outros elementos dentro do posto-content além de conectores */
+.posto-connectors-area {
+    /* Pode ser removido ou reajustado se o .posto-content gerencia tudo agora */
+    /* display: flex; REMOVIDO/AJUSTADO */
+    /* flex-wrap: wrap; REMOVIDO/AJUSTADO */
+    /* gap: 20px; REMOVIDO/AJUSTADO */
+    width: 100%;
+    /* padding-top: 15px; REMOVIDO/AJUSTADO */
+    /* overflow-x: auto; REMOVIDO/AJUSTADO */
+    justify-content: flex-start;
+    align-items: flex-start;
+    min-height: 150px;
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+    order: 1;
+}
+
+.posto-connectors-area.drag-over-posto-area { /* Classe de drag-over para a área de conectores */
     background-color: rgba(var(--primary-red-rgb), 0.2);
     border: 2px dashed var(--primary-red);
     border-radius: 8px;
@@ -382,10 +410,7 @@ h2 {
     box-shadow: 0 3px 10px rgba(0,0,0,0.2);
     background-color: #3a3a3a;
     cursor: default !important;
-    flex-shrink: 0; /* Garante que o conector não encolha */
-    /* A altura do conector será determinada pela altura da imagem + altura do checkbox container */
-    /* Usar o width/height de connectorDefinitions no JS determinará a largura real */
-    /* Min-height deve ser a altura máxima de suas imagens + a altura do conector-checkbox-container */
+    flex-shrink: 0; /* Garante que o conector não encolha e permaneça em sua largura definida */
     min-height: 680px; /* Exemplo: para uma imagem de 650px de altura + 30px de checkbox container */
     width: auto; /* A largura será definida pelo JS */
     box-sizing: border-box; /* Inclui padding e border na largura/altura */
@@ -404,7 +429,7 @@ h2 {
     border-radius: 8px;
 }
 
-/* NOVO: Estilo para o container do checkbox */
+/* Estilo para o container do checkbox */
 .conector-checkbox-container {
     position: absolute; /* Posicionamento absoluto dentro do .conector */
     bottom: 0; /* Alinha na parte inferior do conector */
@@ -451,12 +476,14 @@ h2 {
     border: 1px dashed var(--primary-red);
     border-radius: 5px;
     background-color: rgba(255, 255, 255, 0.1);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: flex; /* Adicionado para centralizar a imagem da OT e o label */
+    flex-direction: column; /* Para empilhar a OT e o label */
+    justify-content: center; /* Centraliza verticalmente */
+    align-items: center; /* Centraliza horizontalmente */
     transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     z-index: 2; /* Fica acima da imagem de fundo, mas abaixo do checkboxContainer */
     cursor: pointer;
+    overflow: hidden; /* Garante que o label não vaze se for grande */
 }
 
 .slot.drag-over {
@@ -466,18 +493,48 @@ h2 {
 }
 
 .slot .ot {
-    width: 90%;
-    height: 90%;
+    width: 90%; /* Ajustado para preencher a slot */
+    height: 90%; /* Ajustado para preencher a slot */
     object-fit: contain;
     cursor: pointer;
     box-shadow: none;
     border: none;
     background-color: transparent;
+    flex-shrink: 0; /* Impede que a imagem encolha */
+    z-index: 1; /* Garante que a imagem OT esteja abaixo do label de origem */
+    /* Removido opacity e filter daqui para que as OTs apareçam completas */
+    opacity: 1;
+    filter: none;
 }
 
 .slot.has-ot {
     background-color: rgba(0, 255, 0, 0.1);
     border-color: #28a745;
+}
+
+/* Estilo para a OT propagada */
+.slot .propagated-ot {
+    /* Manter um pequeno brilho ou filtro para diferenciar, se desejar. */
+    /* Caso contrário, remova ou comente esta regra também. */
+    opacity: 0.9; /* Um pouco menos opaco para diferenciar, mas ainda visível */
+    filter: brightness(80%); /* Um pouco mais escura */
+}
+
+/* Estilo para o label de origem */
+.origin-label {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 0.6em;
+    padding: 2px 4px;
+    border-radius: 3px;
+    z-index: 3;
+    pointer-events: none;
+    font-weight: bold;
+    min-width: 15px;
+    text-align: center;
 }
 
 .ot-palette.drag-over-palette {
@@ -516,6 +573,112 @@ h2 {
     transform: scale(1.1);
 }
 
+/* --- ESTILOS PARA O PENTE (APENAS SLOTS NA HORIZONTAL) --- */
+.pente-container {
+    position: relative;
+    border: 1px dashed var(--medium-gray);
+    border-radius: 8px;
+    background-color: #3a3a3a;
+    padding: 5px;
+    flex-shrink: 0;
+    margin-top: 20px; /* Espaço entre a área de conectores e o pente */
+    box-sizing: border-box;
+    width: auto;
+    min-width: 100%;
+    height: 60px; /* Altura fixa para uma única linha de slots (slotSize + padding) */
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    order: 2; /* ORDEM 2: Aparece depois da área de conectores na coluna flex */
+}
+
+.pente-bg-image {
+    display: none;
+}
+
+.pente-clamp {
+    position: absolute;
+    border: 1px solid var(--clamp-border-empty);
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.05); /* Fundo sutil para a clamp vazia */
+    display: flex;
+    flex-direction: column; /* Para empilhar imagem e número */
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+    z-index: 2; /* Garante que a clamp esteja ACIMA do pente-container */
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.pente-clamp .clamp-number {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    color: rgba(255, 255, 255, 0.5); /* Cor mais discreta para o número */
+    font-size: 0.6em;
+    font-weight: bold;
+    z-index: 3; /* Acima da imagem do item, mas discreto */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+}
+
+.pente-clamp.drag-over {
+    background-color: rgba(var(--primary-red-rgb), 0.3);
+    border-color: var(--primary-red);
+    box-shadow: 0 0 10px 3px rgba(var(--primary-red-rgb), 0.7);
+}
+
+.pente-clamp.has-item {
+    border-color: var(--clamp-border-empty);
+    background-color: transparent; /* Remove fundo para a imagem do item ser visível */
+}
+
+/* Estilos para os itens DENTRO do pente (OTs e Conectores) */
+.ot-in-pente-display,
+.connector-in-pente-display { /* Aplica estilos comuns para ambos */
+    width: 90%; /* Ajuste para dar um pequeno padding visual */
+    height: 90%;
+    object-fit: contain; /* Garante que a imagem se ajuste sem cortar */
+    cursor: grab;
+    transition: opacity 0.2s, transform 0.2s;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    z-index: 4; /* Garante que a imagem do item fique acima do número e da clamp */
+}
+
+/* Esconder o nome do conector quando ele está na slot do pente */
+.connector-in-pente-display .connector-in-pente-name-display {
+    display: none;
+}
+
+/* A imagem do conector dentro do pente deve preencher o espaço */
+.connector-in-pente-img-display {
+    width: 100%; /* A imagem preenche o container .connector-in-pente-display */
+    height: 100%;
+    object-fit: contain;
+}
+
+.ot-in-pente-display.dragging,
+.connector-in-pente-display.dragging {
+    opacity: 0.7;
+    transform: scale(0.9);
+}
+
+/* Indicativos de cor para as clamps no pente */
+.pente-clamp.clamp-baixar {
+    border-color: var(--clamp-blue);
+    box-shadow: 0 0 5px 2px var(--clamp-blue);
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.pente-clamp.clamp-puxar {
+    border-color: var(--clamp-green);
+    box-shadow: 0 0 5px 2px var(--clamp-green);
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+
 /* Scrollbar Style - para combinar com o tema escuro */
 ::-webkit-scrollbar {
     width: 10px;
@@ -534,4 +697,345 @@ h2 {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-red);
+}
+
+/* Container para os botões do relatório e a área do relatório */
+.report-controls-and-area {
+    margin-top: 30px; /* Espaço do conteúdo acima */
+    width: 95%; /* Ocupa 95% da largura da viewport */
+    max-width: 1200px; /* Largura máxima para o relatório */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centraliza os itens horizontalmente */
+    gap: 20px; /* Espaço entre os botões e a área do relatório */
+    box-sizing: border-box;
+}
+
+.report-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center; /* Centraliza os botões */
+    width: 100%;
+}
+
+.report-buttons button {
+    padding: 12px 25px;
+    border-radius: 8px;
+    border: 1px solid var(--primary-red);
+    font-size: 1rem;
+    cursor: pointer;
+    background-color: var(--primary-red);
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.report-buttons button:hover {
+    background-color: var(--secondary-red);
+    border-color: var(--secondary-red);
+    box-shadow: 0 4px 10px rgba(var(--primary-red-rgb), 0.4);
+}
+
+
+/* NOVO: Estilos para a área de relatório */
+#report-area {
+    padding: 20px;
+    background-color: #333;
+    border-radius: 10px;
+    width: 100%; /* Ocupa 100% do seu container pai */
+    color: var(--light-text);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    max-height: 70vh; /* Altura máxima com scrollbar se necessário */
+    overflow-y: auto;
+    box-sizing: border-box; /* Inclui padding e border na largura/altura */
+}
+
+#report-area h2 {
+    color: var(--primary-red);
+    text-align: center;
+    margin-top: 0; /* Ajuste para espaçamento após o título */
+    margin-bottom: 25px;
+    font-size: 2em;
+    border-bottom: none; /* Removido para evitar duas linhas de separação */
+}
+
+.report-posto-section {
+    border: 1px solid var(--medium-gray);
+    background-color: #2a2a2a;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.report-posto-section h3 {
+    color: var(--primary-red);
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.report-posto-section p {
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+.report-posto-section h4 {
+    color: var(--light-text);
+    border-bottom: 1px dashed #555;
+    padding-bottom: 5px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+
+.report-posto-section ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.report-posto-section ul li {
+    padding: 5px 0;
+    border-bottom: 1px dotted rgba(255,255,255,0.05);
+    font-size: 0.9em;
+}
+
+.report-posto-section ul li:last-child {
+    border-bottom: none;
+}
+
+/* NOVO: Estilos para o Modal de Seleção de Posto */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top, acima de tudo */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #2a2a2a;
+    margin: auto;
+    padding: 30px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    position: relative;
+    text-align: center;
+    color: var(--light-text);
+}
+
+.modal-content h2 {
+    color: var(--primary-red);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: none;
+}
+
+.modal-content p {
+    margin-bottom: 15px;
+    font-size: 1em;
+}
+
+.modal-content select {
+    width: 80%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    background-color: #3a3a3a;
+    color: var(--light-text);
+}
+
+.modal-content button {
+    padding: 10px 20px;
+    background-color: var(--primary-red);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.modal-content button:hover {
+    background-color: var(--secondary-red);
+    box-shadow: 0 3px 8px rgba(var(--primary-red-rgb), 0.4);
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: var(--primary-red);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+
+/* NOVO: Estilos para a página Paco-Paco (paco-paco.html) */
+#paco-paco-postos-container {
+    display: flex;
+    flex-wrap: wrap; /* Permite que os blocos de posto quebrem linha */
+    gap: 30px;
+    width: 100%;
+    max-width: 95vw;
+    margin-top: 20px;
+    padding: 30px;
+    background-color: #222;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    justify-content: center; /* Centraliza os blocos de posto */
+    align-items: flex-start;
+}
+
+.paco-posto-section {
+    border: 1px solid var(--medium-gray);
+    background-color: #333;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex-basis: calc(50% - 15px); /* Ocupa cerca de metade da largura, com espaço entre */
+    max-width: calc(50% - 15px);
+    box-sizing: border-box; /* Inclui padding e border na largura */
+    min-width: 600px; /* Largura mínima para o posto completo do Paco-Paco */
+}
+
+.paco-posto-section h2 {
+    color: var(--primary-red);
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px dashed #555;
+    padding-bottom: 10px;
+}
+
+.paco-posto-content-wrapper {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    align-items: flex-start;
+}
+
+.paco-paco-palette-local {
+    width: 180px; /* Largura fixa para a paleta de OTs do posto */
+    flex-shrink: 0;
+    border: 1px dashed #555;
+    background-color: #2a2a2a;
+    padding: 10px;
+    border-radius: 8px;
+    max-height: 400px; /* Altura máxima para a paleta com scroll */
+    overflow-y: auto;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
+.paco-paco-palette-local h3 {
+    color: var(--light-text);
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1em;
+    text-align: center;
+}
+
+.paco-palette-ots {
+    display: flex;
+    flex-wrap: wrap; /* Permite que as OTs quebrem linha na paleta */
+    gap: 10px;
+    justify-content: center;
+}
+
+.paco-ot-draggable {
+    width: 50px;
+    height: 50px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    cursor: grab;
+    transition: border-color 0.15s, transform 0.15s;
+    object-fit: contain;
+    background-color: #3a3a3a;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.paco-ot-draggable:hover {
+    border-color: var(--primary-red);
+    transform: translateY(-2px);
+}
+
+.paco-ot-draggable.dragging {
+    opacity: 0.6;
+    border-color: var(--primary-red);
+    box-shadow: 0 4px 8px rgba(var(--primary-red-rgb), 0.3);
+}
+
+.paco-paco-grid-area-local {
+    flex-grow: 1;
+    border: 2px dashed var(--primary-red);
+    background-color: #2a2a2a;
+    padding: 10px;
+    border-radius: 8px;
+    display: grid;
+    /* grid-template-columns e grid-template-rows definidos no JS */
+    gap: 3px; /* Espaço entre as cavidades */
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    overflow: auto; /* Rolagem se o grid for muito grande */
+    min-width: 400px; /* Largura mínima para o grid de 10 colunas x 40px */
+}
+
+.paco-paco-cavity-local {
+    border: 1px solid #555;
+    background-color: rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 3px;
+    transition: background-color 0.1s, border-color 0.1s;
+    box-sizing: border-box;
+}
+
+.paco-paco-cavity-local.drag-over {
+    background-color: rgba(var(--primary-red-rgb), 0.3);
+    border-color: var(--primary-red);
+    box-shadow: 0 0 8px 2px rgba(var(--primary-red-rgb), 0.6);
+}
+
+.paco-paco-cavity-local.has-ot {
+    background-color: rgba(0, 255, 0, 0.1);
+    border-color: #28a745;
+}
+
+.paco-ot-in-cavity {
+    width: 90%;
+    height: 90%;
+    object-fit: contain;
+    cursor: pointer; /* Permite clicar para remover */
+}
+
+@media (max-width: 1200px) {
+    .paco-posto-section {
+        flex-basis: 100%; /* Em telas menores, ocupa a largura total */
+        max-width: 100%;
+    }
 }
