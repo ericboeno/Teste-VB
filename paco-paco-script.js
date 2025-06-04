@@ -94,8 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
         availableOtsDiv.classList.add('paco-palette-ots');
         pacoPalette.appendChild(availableOtsDiv);
 
-        // OTs que estão na paleta (não estão no Paco-Paco)
-        const otsCurrentlyInPaco = new Set(Object.values(pacoPacoStates[postoId] || {}));
+        // OTs que estão no Paco-Paco (estado salvo)
+        // Precisamos rastrear quais instâncias de OT estão no Paco-Paco para ocultar as cópias na paleta.
+        // Um Set para os IDs das OTs que já estão em alguma cavidade.
+        const otsInCavities = new Set();
+        if (pacoPacoStates[postoId]) {
+            for (const cavityId in pacoPacoStates[postoId]) {
+                otsInCavities.add(pacoPacoStates[postoId][cavityId]);
+            }
+        }
 
         if (initialOtsForThisPosto.length === 0) {
             const noOtsMsg = document.createElement('p');
@@ -103,33 +110,65 @@ document.addEventListener('DOMContentLoaded', () => {
             availableOtsDiv.appendChild(noOtsMsg);
         } else {
             initialOtsForThisPosto.forEach(otId => {
-                const otImg = document.createElement('img');
-                otImg.src = `images/${otId.replace('ot', '')}.png`;
-                otImg.alt = otId;
-                otImg.id = `paco-palette-${postoId}-${otId}`; // ID único para a OT na paleta do Paco-Paco
-                otImg.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
-                otImg.draggable = true;
+                // Criar a primeira OT (otId-1)
+                const otImg1 = document.createElement('img');
+                otImg1.src = `images/${otId.replace('ot', '')}.png`;
+                otImg1.alt = otId;
+                otImg1.id = `paco-palette-${postoId}-${otId}-1`; // ID único para a 1ª OT na paleta
+                otImg1.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
+                otImg1.draggable = true;
 
-                // Esconde a OT da paleta se ela já estiver no Paco-Paco (estado salvo)
-                if (otsCurrentlyInPaco.has(otId)) {
-                    otImg.style.display = 'none';
-                    otImg.draggable = false;
+                // Oculta a OT da paleta se o ID original da OT já estiver em alguma cavidade
+                if (otsInCavities.has(otId)) {
+                    otImg1.style.display = 'none';
+                    otImg1.draggable = false;
                 }
 
-                otImg.addEventListener('dragstart', (e) => {
+                otImg1.addEventListener('dragstart', (e) => {
                     draggedOt = e.target;
-                    e.dataTransfer.setData('text/plain', draggedOt.id); // Transfere o ID da OT
+                    e.dataTransfer.setData('text/plain', draggedOt.id); // Transfere o ID da OT na paleta
                     e.dataTransfer.setData('application/json', JSON.stringify({
-                        otId: otId,
-                        sourcePostoId: postoId // Indica de qual paleta de posto a OT veio
+                        otId: otId, // O ID original da OT (ex: 'ot0190')
+                        paletteOtId: draggedOt.id, // O ID da instância na paleta (ex: 'paco-palette-posto-p01-ot0190-1')
+                        sourcePostoId: postoId
                     }));
                     draggedOt.classList.add('dragging');
                 });
-                otImg.addEventListener('dragend', () => {
+                otImg1.addEventListener('dragend', () => {
                     draggedOt.classList.remove('dragging');
                     draggedOt = null;
                 });
-                availableOtsDiv.appendChild(otImg);
+                availableOtsDiv.appendChild(otImg1);
+
+                // Criar a segunda OT (otId-2) - Duplicata
+                const otImg2 = document.createElement('img');
+                otImg2.src = `images/${otId.replace('ot', '')}.png`;
+                otImg2.alt = otId;
+                otImg2.id = `paco-palette-${postoId}-${otId}-2`; // ID único para a 2ª OT na paleta
+                otImg2.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
+                otImg2.draggable = true;
+
+                // Oculta a OT da paleta se o ID original da OT já estiver em alguma cavidade
+                if (otsInCavities.has(otId)) {
+                    otImg2.style.display = 'none';
+                    otImg2.draggable = false;
+                }
+
+                otImg2.addEventListener('dragstart', (e) => {
+                    draggedOt = e.target;
+                    e.dataTransfer.setData('text/plain', draggedOt.id); // Transfere o ID da OT na paleta
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                        otId: otId, // O ID original da OT (ex: 'ot0190')
+                        paletteOtId: draggedOt.id, // O ID da instância na paleta (ex: 'paco-palette-posto-p01-ot0190-2')
+                        sourcePostoId: postoId
+                    }));
+                    draggedOt.classList.add('dragging');
+                });
+                otImg2.addEventListener('dragend', () => {
+                    draggedOt.classList.remove('dragging');
+                    draggedOt = null;
+                });
+                availableOtsDiv.appendChild(otImg2);
             });
         }
         contentWrapper.appendChild(pacoPalette);
@@ -142,6 +181,17 @@ document.addEventListener('DOMContentLoaded', () => {
         pacoGridArea.style.gridTemplateColumns = `repeat(${PACO_PACO_COLUMNS}, ${PACO_PACO_CAVITY_SIZE}px)`;
         pacoGridArea.style.gridTemplateRows = `repeat(${PACO_PACO_ROWS}, ${PACO_PACO_CAVITY_SIZE}px)`;
 
+        // Definição das legendas dos slots
+        const slotLabels = [];
+        const rows = ['D', 'C', 'B', 'A']; // D (superior) -> A (inferior)
+        for (let r = 0; r < PACO_PACO_ROWS; r++) {
+            const rowLabel = rows[r];
+            for (let c = 0; c < PACO_PACO_COLUMNS; c++) {
+                slotLabels.push(`${rowLabel}${String(c + 1).padStart(2, '0')}`);
+            }
+        }
+        let currentSlotLabelIndex = 0; // Para iterar sobre as legendas
+
         // Gera as cavidades
         for (let r = 0; r < PACO_PACO_ROWS; r++) {
             for (let c = 0; c < PACO_PACO_COLUMNS; c++) {
@@ -149,31 +199,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cavityDiv = document.createElement('div');
                 cavityDiv.classList.add('paco-paco-cavity-local');
                 cavityDiv.id = cavityId;
-                cavityDiv.dataset.postoId = postoId; // Marca a qual posto a cavidade pertence
+                cavityDiv.dataset.postoId = postoId;
+
+                // Adiciona a legenda ao slot
+                const labelSpan = document.createElement('span');
+                labelSpan.classList.add('paco-cavity-label');
+                labelSpan.textContent = slotLabels[currentSlotLabelIndex++];
+                cavityDiv.appendChild(labelSpan);
 
                 // Restaura OT se existir no estado salvo
                 if (pacoPacoStates[postoId] && pacoPacoStates[postoId][cavityId]) {
-                    const savedOtId = pacoPacoStates[postoId][cavityId];
+                    const savedOtData = pacoPacoStates[postoId][cavityId]; // Pode ser apenas o ID da OT ou um objeto {otId, paletteOtId}
+                    let savedOtId;
+                    let savedPaletteOtId;
+
+                    if (typeof savedOtData === 'object') {
+                        savedOtId = savedOtData.otId;
+                        savedPaletteOtId = savedOtData.paletteOtId;
+                    } else { // Compatibilidade com estados antigos
+                        savedOtId = savedOtData;
+                        // Tentar inferir o paletteOtId, ou deixar em branco se não for possível.
+                        // Poderíamos procurar por ambas as instâncias '-1' ou '-2' na paleta.
+                        savedPaletteOtId = `paco-palette-${postoId}-${savedOtId}-1`; // Assume a primeira instância se não houver um ID salvo
+                        if (!document.getElementById(savedPaletteOtId)) {
+                             savedPaletteOtId = `paco-palette-${postoId}-${savedOtId}-2`;
+                        }
+                    }
+
                     const otCopy = document.createElement('img');
                     otCopy.src = `images/${savedOtId.replace('ot', '')}.png`;
                     otCopy.alt = savedOtId;
-                    otCopy.id = `paco-cavity-${postoId}-${savedOtId}`;
+                    otCopy.id = `paco-cavity-${postoId}-${savedOtId}`; // ID único na cavidade
                     otCopy.classList.add('paco-ot-in-cavity');
                     otCopy.draggable = false;
+                    otCopy.dataset.originalPaletteOtId = savedPaletteOtId; // Guarda o ID da OT original da paleta
                     cavityDiv.appendChild(otCopy);
                     cavityDiv.classList.add('has-ot');
 
+                    // Esconde a OT original da paleta novamente (se não estiver já escondida)
+                    const originalPaletteOt = document.getElementById(savedPaletteOtId);
+                    if (originalPaletteOt) {
+                        originalPaletteOt.style.display = 'none';
+                        originalPaletteOt.draggable = false;
+                    }
+
                     // Re-anexar listener de clique para remover
                     otCopy.addEventListener('click', () => {
+                        const otToReturnId = otCopy.dataset.originalPaletteOtId; // Usa o ID da OT da paleta que foi usada
                         cavityDiv.removeChild(otCopy);
                         cavityDiv.classList.remove('has-ot');
                         delete pacoPacoStates[postoId][cavityDiv.id];
                         savePacoPacoState(); // Salva estado após remoção
 
-                        const originalPaletteOt = document.getElementById(`paco-palette-${postoId}-${savedOtId}`);
-                        if (originalPaletteOt) {
-                            originalPaletteOt.style.display = 'block';
-                            originalPaletteOt.draggable = true;
+                        const originalPaletteOtElement = document.getElementById(otToReturnId);
+                        if (originalPaletteOtElement) {
+                            originalPaletteOtElement.style.display = 'block';
+                            originalPaletteOtElement.draggable = true;
                         }
                     });
                 }
@@ -194,16 +275,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     cavityDiv.classList.remove('drag-over');
 
                     const otDataTransfer = JSON.parse(e.dataTransfer.getData('application/json'));
-                    const droppedOtId = otDataTransfer.otId;
-                    const sourcePostoIdFromDrag = otDataTransfer.sourcePostoId; // Posto de onde a OT veio na paleta
+                    const droppedOtId = otDataTransfer.otId; // ID original da OT (ex: 'ot0190')
+                    const droppedPaletteOtId = otDataTransfer.paletteOtId; // ID da instância da OT na paleta (ex: 'paco-palette-posto-p01-ot0190-1')
+                    const sourcePostoIdFromDrag = otDataTransfer.sourcePostoId;
 
                     // Verifica se a OT está vindo da paleta do posto correto e se a cavidade está vazia
                     if (draggedOt && sourcePostoIdFromDrag === postoId && !cavityDiv.querySelector('.paco-ot-in-cavity')) {
-                        // Encontra a OT original na paleta deste posto para escondê-la
-                        const originalPaletteOt = document.getElementById(`paco-palette-${postoId}-${droppedOtId}`);
+                        // Encontra a OT original na paleta deste posto para escondê-la (usando o ID da instância da paleta)
+                        const originalPaletteOt = document.getElementById(droppedPaletteOtId);
                         if (originalPaletteOt) {
                             originalPaletteOt.style.display = 'none';
-                            originalPaletteOt.draggable = false; // Não arrastável da paleta uma vez usada
+                            originalPaletteOt.draggable = false;
                         }
 
                         const otCopy = document.createElement('img');
@@ -212,23 +294,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         otCopy.id = `paco-cavity-${postoId}-${droppedOtId}`; // ID único na cavidade
                         otCopy.classList.add('paco-ot-in-cavity');
                         otCopy.draggable = false; // Não arrastável da cavidade (por clique para remover)
+                        otCopy.dataset.originalPaletteOtId = droppedPaletteOtId; // Guarda o ID da OT original da paleta
 
                         cavityDiv.appendChild(otCopy);
                         cavityDiv.classList.add('has-ot');
-                        pacoPacoStates[postoId][cavityDiv.id] = droppedOtId; // Armazena o estado
+                        // Armazena o ID original da OT e o ID da instância da paleta
+                        pacoPacoStates[postoId][cavityDiv.id] = { otId: droppedOtId, paletteOtId: droppedPaletteOtId };
                         savePacoPacoState(); // Salva estado após drop
 
                         // Listener para remover a OT da cavidade
                         otCopy.addEventListener('click', () => {
+                            const otToReturnId = otCopy.dataset.originalPaletteOtId; // Usa o ID da OT da paleta que foi usada
                             cavityDiv.removeChild(otCopy);
                             cavityDiv.classList.remove('has-ot');
                             delete pacoPacoStates[postoId][cavityDiv.id];
                             savePacoPacoState(); // Salva estado após remoção
 
                             // Retorna a OT para a paleta e a torna arrastável novamente
-                            if (originalPaletteOt) {
-                                originalPaletteOt.style.display = 'block';
-                                originalPaletteOt.draggable = true;
+                            const originalPaletteOtElement = document.getElementById(otToReturnId);
+                            if (originalPaletteOtElement) {
+                                originalPaletteOtElement.style.display = 'block';
+                                originalPaletteOtElement.draggable = true;
                             }
                         });
                     }

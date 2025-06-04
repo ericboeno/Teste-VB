@@ -1198,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove listeners existentes para evitar duplicação
             if (slot._dragOverListener) slot.removeEventListener('dragover', slot._dragOverListener);
             if (slot._dragEnterListener) slot.removeEventListener('dragenter', slot._dragEnterListener);
-            if (slot._dragLeaveListener) slot.removeEventListener('dragleave', slot._dragleaveListener);
+            if (slot._dragleaveListener) slot.removeEventListener('dragleave', slot._dragleaveListener);
             if (slot._dropListener) slot.removeEventListener('drop', slot._dropListener);
             if (slot._clickListener) slot.removeEventListener('click', slot._clickListener);
 
@@ -1578,6 +1578,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Modal para Seleção de Posto para Paco-Paco (Nova Aba) ---
+    // ESTA FUNÇÃO SERÁ REMOVIDA, POIS O ACESSO AO PACO-PACO SERÁ DIRETO
+    /*
     function showPostoSelectionModal() {
         const numPostos = parseInt(numPostosSelect.value);
         // Se a simulação ainda não gerou postos, não há o que selecionar
@@ -1647,6 +1649,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+    */ // FIM DA FUNÇÃO showPostoSelectionModal REMOVIDA
 
     // --- Listeners Globais ---
     gerarPostosBtn.addEventListener('click', () => {
@@ -1661,7 +1664,13 @@ document.addEventListener('DOMContentLoaded', () => {
     gerarRelatorioBtn.addEventListener('click', generateDetailedReport);
     limparRelatorioBtn.addEventListener('click', clearReportArea);
 
-    goToPacoPacoBtn.addEventListener('click', showPostoSelectionModal);
+    // MODIFICAÇÃO CHAVE AQUI: Listener para o botão "Ir para Paco-Paco"
+    goToPacoPacoBtn.addEventListener('click', () => {
+        // Remover qualquer vestígio de seleção de posto anterior, já que não será mais usado
+        sessionStorage.removeItem('selectedPacoPostoIdForTab');
+        // Abre a tela de Paco-Paco diretamente, que por sua vez, carregará todos os postos
+        window.open('paco-paco.html', '_blank');
+    });
 
 
     // --- Inicialização ---

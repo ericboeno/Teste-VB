@@ -1039,3 +1039,20 @@ h2 {
         max-width: 100%;
     }
 }
+
+/* NOVO: Estilo para a legenda dentro da cavidade do Paco-Paco */
+.paco-paco-cavity-local {
+    position: relative; /* Necessário para posicionar o label */
+    /* ... estilos existentes ... */
+}
+
+.paco-cavity-label {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.6em; /* Tamanho da fonte para caber */
+    color: rgba(255, 255, 255, 0.6); /* Cor suave */
+    font-weight: bold;
+    z-index: 5; /* Garante que a legenda fique acima da OT */
+    pointer-events: none; /* Não interfere com cliques/arrastes */
+}
