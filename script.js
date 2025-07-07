@@ -1,3 +1,4 @@
+// Arquivo: Simulador de Submontagem/script.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Definição dos Conectores e Seus Slots ---
     const connectorDefinitions = {
@@ -191,6 +192,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 { top: 325, left: 310, idSuffix: '2' }
             ]
         },
+
+        '701': { // Solda existente
+            imageSrc: 'images/701.png',
+            width: 600,
+            height: 650,
+            slotSize: 120,
+            slotPositions: [
+                { top: 90, left: 112, idSuffix: '1' },
+                { top: 90, left: 312, idSuffix: '2' },
+                { top: 220, left: 312, idSuffix: '3' },
+                { top: 350, left: 312, idSuffix: '4' }
+            ]
+        },
+        '702': { // Solda existente
+            imageSrc: 'images/702.png',
+            width: 600,
+            height: 650,
+            slotSize: 120,
+            slotPositions: [
+                { top: 90, left: 112, idSuffix: '1' },
+                { top: 90, left: 312, idSuffix: '2' },
+                { top: 220, left: 312, idSuffix: '3' }
+            ]
+        },
+        '703': { // Solda existente
+            imageSrc: 'images/703.png',
+            width: 600,
+            height: 650,
+            slotSize: 60,
+            slotPositions: [
+                { top: 60, left: 195, idSuffix: '1' },
+                { top: 60, left: 320, idSuffix: '2' },
+                { top: 142, left: 195, idSuffix: '3' },
+                { top: 142, left: 320, idSuffix: '4' },
+                { top: 212, left: 195, idSuffix: '5' },
+                { top: 292, left: 195, idSuffix: '6' },
+                { top: 372, left: 195, idSuffix: '7' },
+                { top: 452, left: 195, idSuffix: '8' },
+                { top: 532, left: 195, idSuffix: '9' },
+                { top: 612, left: 195, idSuffix: '10' }
+            ]
+        },
+
+        '704': { // Solda existente
+            imageSrc: 'images/704.png',
+            width: 600,
+            height: 650,
+            slotSize: 100,
+            slotPositions: [
+                { top: 92, left: 120, idSuffix: '1' },
+                { top: 221, left: 120, idSuffix: '2' },
+                { top: 351, left: 120, idSuffix: '3' }
+            ]
+        },
+
+        '705': { // Solda existente
+            imageSrc: 'images/705.png',
+            width: 600,
+            height: 650,
+            slotSize: 100,
+            slotPositions: [
+                { top: 92, left: 120, idSuffix: '1' },
+                { top: 221, left: 120, idSuffix: '2' },
+                { top: 351, left: 120, idSuffix: '3' }
+            ]
+        },
+
         // --- NOVOS COMPONENTES GROMMETS (SEM SLOTS) ---
         'GROMMET1': {
             imageSrc: 'images/GROMMET1.png',
@@ -556,6 +624,43 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // --- Lógica de propagação para o Posto de Solda (AGORA ANTES DOS POSTOS NUMERADOS) ---
+        const postoSoldaId = 'posto-solda-01';
+        const postoSoldaElement = document.getElementById(postoSoldaId);
+        if (postoSoldaElement) {
+            const targetConectorElement = postoSoldaElement.querySelector(`.conector-${sourceConectorType}`);
+            if (targetConectorElement) {
+                const targetSlot = targetConectorElement.querySelector(`[id$="-${sourceSlotSuffix}"]`);
+                if (targetSlot && !targetSlot.querySelector('.ot')) {
+                    const otCopy = originalOtElement.cloneNode(true);
+                    otCopy.classList.remove('dragging');
+                    otCopy.style.position = '';
+                    otCopy.style.top = '';
+                    otCopy.style.left = '';
+                    otCopy.dataset.isPropagated = 'true';
+                    otCopy.draggable = false;
+
+                    otCopy.classList.add('propagated-ot');
+                    otCopy.dataset.originalPosto = sourcePostoId.startsWith('posto-p') ? `P${sourcePostoNumber}` : sourcePostoId; // Pode ser P1, P2 ou Posto de Solda
+
+                    targetSlot.appendChild(otCopy);
+                    targetSlot.classList.add('has-ot');
+
+                    const originLabel = document.createElement('span');
+                    originLabel.classList.add('origin-label');
+                    originLabel.textContent = sourcePostoId.startsWith('posto-p') ? `P${sourcePostoNumber}` : sourcePostoId;
+                    targetSlot.appendChild(originLabel);
+
+                    const targetConectorId = targetConectorElement.id;
+                    const targetSlotId = targetSlot.id;
+                    if (!slotContents[postoSoldaId]) slotContents[postoSoldaId] = {};
+                    if (!slotContents[postoSoldaId][targetConectorId]) slotContents[postoSoldaId][targetConectorId] = {};
+                    slotContents[postoSoldaId][targetConectorId][targetSlotId] = { otId: otId, isPropagated: true };
+                }
+            }
+        }
+
+        // Loop através dos postos numerados subsequentes
         for (let i = sourcePostoNumber + 1; i <= totalPostos; i++) {
             const targetPostoId = `posto-p${String(i).padStart(2, '0')}`;
             const targetPostoElement = document.getElementById(targetPostoId);
@@ -615,6 +720,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const sourceConectorType = sourceConectorElement.dataset.connectorType;
         const sourceSlotSuffix = sourceSlotId.split('-').pop();
 
+        // --- Lógica de depropagação para o Posto de Solda ---
+        const postoSoldaId = 'posto-solda-01';
+        const postoSoldaElement = document.getElementById(postoSoldaId);
+        if (postoSoldaElement) {
+            const targetConectorElement = postoSoldaElement.querySelector(`.conector-${sourceConectorType}`);
+            if (targetConectorElement) {
+                const targetSlot = targetConectorElement.querySelector(`[id$="-${sourceSlotSuffix}"]`);
+                if (targetSlot) {
+                    const otInSlot = targetSlot.querySelector('.ot');
+                    const originLabelInSlot = targetSlot.querySelector('.origin-label');
+                    if (otInSlot && otInSlot.id === otId && otInSlot.dataset.isPropagated === 'true') {
+                        targetSlot.removeChild(otInSlot);
+                        if (originLabelInSlot) {
+                            targetSlot.removeChild(originLabelInSlot);
+                        }
+                        targetSlot.classList.remove('has-ot');
+
+                        const targetConectorId = targetConectorElement.id;
+                        const targetSlotId = targetSlot.id;
+                        if (slotContents[postoSoldaId] && slotContents[postoSoldaId][targetConectorId]) {
+                            delete slotContents[postoSoldaId][targetConectorId][targetSlotId];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Loop através dos postos numerados subsequentes
         for (let i = sourcePostoNumber + 1; i <= totalPostos; i++) {
             const targetPostoId = `posto-p${String(i).padStart(2, '0')}`;
             const targetPostoElement = document.getElementById(targetPostoId);
@@ -801,7 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 postoActionLog[currentPostoId].push({
                     action: actionDescription,
                     time: timeChange,
-                    type: isChecked ? 'add' : 'subtract',
+                    type: 'add',
                     conectorId: conectorDiv.id,
                     conectorType: type
                 });
@@ -965,6 +1098,60 @@ document.addEventListener('DOMContentLoaded', () => {
         // Garante que a paleta de OTs seja re-configurada (todas visíveis e arrastáveis)
         syncOtPaletteVisibility();
 
+        // --- Adicionar o Posto de Solda 01 FIXO PRIMEIRO ---
+        const postoSoldaId = 'posto-solda-01';
+        const postoSoldaContainer = document.createElement('div');
+        postoSoldaContainer.classList.add('posto-container');
+        postoSoldaContainer.id = postoSoldaId;
+
+        const postoSoldaHeader = document.createElement('div');
+        postoSoldaHeader.classList.add('posto-header');
+
+        const postoSoldaTitle = document.createElement('h3');
+        postoSoldaTitle.textContent = `Posto de Solda 01`; // Título fixo
+        postoSoldaHeader.appendChild(postoSoldaTitle);
+
+        const postoSoldaProgressBarContainer = document.createElement('div');
+        postoSoldaProgressBarContainer.classList.add('progress-bar-container');
+        const postoSoldaProgressBarFill = document.createElement('div');
+        postoSoldaProgressBarFill.classList.add('progress-bar-fill');
+        const postoSoldaProgressTimeLabel = document.createElement('span');
+        postoSoldaProgressTimeLabel.classList.add('progress-time-label');
+
+        postoSoldaProgressBarContainer.appendChild(postoSoldaProgressBarFill);
+        postoSoldaProgressBarContainer.appendChild(postoSoldaProgressTimeLabel);
+        postoSoldaHeader.appendChild(postoSoldaProgressBarContainer);
+
+        const postoSoldaContent = document.createElement('div');
+        postoSoldaContent.classList.add('posto-content');
+
+        postoSoldaContainer.appendChild(postoSoldaHeader);
+        postoSoldaContainer.appendChild(postoSoldaContent);
+        postosArea.appendChild(postoSoldaContainer); // Adiciona o posto de solda AQUI
+
+        let soldaBaseTime = 0;
+        if (!postoActionLog[postoSoldaId]) postoActionLog[postoSoldaId] = [];
+
+        // Critério 2: Realizar a leitura do código de barras do kanban (1,74s) - Aplicado também à solda
+        soldaBaseTime += TIME_BARCODE_SCAN;
+        postoActionLog[postoSoldaId].push({
+            action: 'Realizar a leitura do código de barras do kanban (Posto de Solda)',
+            time: TIME_BARCODE_SCAN,
+            type: 'add',
+            category: 'Base Time'
+        });
+        // Você pode adicionar outras constantes de tempo específicas para o processo de solda aqui.
+        // Exemplo: const TIME_SOLDAGEM = 5.0; // Novo tempo para soldagem
+        // soldaBaseTime += TIME_SOLDAGEM;
+        // postoActionLog[postoSoldaId].push({ action: 'Realizar Soldagem', time: TIME_SOLDAGEM, type: 'add', category: 'Base Time' });
+
+        postoTimes[postoSoldaId] = soldaBaseTime;
+        updateProgressBar(postoSoldaId);
+        addPostoDragDropListeners(postoSoldaContent);
+
+        originalOtsByPosto[postoSoldaId] = []; // Inicializa a lista de OTs originais para este posto
+        // --- Fim da adição do Posto de Solda 01 ---
+
 
         for (let i = 1; i <= num; i++) {
             const postoId = `posto-p${String(i).padStart(2, '0')}`;
@@ -1059,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             originalOtsByPosto[postoId] = []; // Inicializa a lista de OTs originais para este posto
         }
+
         if (reportArea) reportArea.innerHTML = ''; // Limpa a área de relatório ao gerar novos postos
         updateOriginalOtsByPosto(); // Garante que o sessionStorage seja populado mesmo com postos vazios
         saveAppState(); // Salva estado após gerar novos postos
@@ -1454,7 +1642,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         conectorType: type
                     });
 
-                    const currentPostoNumber = parseInt(postoId.replace('posto-p', ''));
+                    // Modificação: A propagação deve considerar o ID do posto de solda.
+                    // currentPostoNumber é usado apenas para postos numerados.
+                    const isPostoNumerado = postoId.startsWith('posto-p');
+                    const currentPostoNumber = isPostoNumerado ? parseInt(postoId.replace('posto-p', '')) : 0; // 0 ou outro valor para não-numerados
+
                     const newConnectorType = newConnectorElement.dataset.connectorType;
                     const newConnectorId = newConnectorElement.id;
                     const newConnectorDefinition = connectorDefinitions[newConnectorType];
@@ -1465,16 +1657,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             const targetSlotElement = newConnectorElement.querySelector(`#${newSlotId}`);
 
                             if (targetSlotElement && !targetSlotElement.querySelector('.ot')) {
-                                for (let i = 1; i < currentPostoNumber; i++) {
-                                    const prevPostoId = `posto-p${String(i).padStart(2, '0')}`;
-                                    if (slotContents[prevPostoId]) {
-                                        for (const prevConectorId in slotContents[prevPostoId]) {
+                                // Lógica de preenchimento de slots de conectores adicionados, a partir de postos anteriores (numerados)
+                                // ou do posto de solda, se aplicável.
+
+                                // Prioriza buscar OTs do Posto de Solda se o conector for adicionado a um posto numerado
+                                if (isPostoNumerado) {
+                                    const postoSoldaRefId = 'posto-solda-01'; // ID do posto de solda
+                                    if (slotContents[postoSoldaRefId]) {
+                                        for (const prevConectorId in slotContents[postoSoldaRefId]) {
                                             const prevConectorElement = document.getElementById(prevConectorId);
                                             if (prevConectorElement && prevConectorElement.dataset.connectorType === newConnectorType) {
                                                 const prevSlotId = `${prevConectorId}-${slotPos.idSuffix || `slot${slotPos.idSuffix}`}`;
-                                                const otData = slotContents[prevPostoId][prevConectorId][prevSlotId];
+                                                const otData = slotContents[postoSoldaRefId][prevConectorId][prevSlotId];
 
-                                                if (otData && !otData.isPropagated) {
+                                                if (otData && !otData.isPropagated) { // A OT precisa ser original do posto de solda
                                                     const originalOtElement = otElementsMap.get(otData.otId);
                                                     if (originalOtElement) {
                                                         const otCopy = originalOtElement.cloneNode(true);
@@ -1486,26 +1682,71 @@ document.addEventListener('DOMContentLoaded', () => {
                                                         otCopy.draggable = false;
 
                                                         otCopy.classList.add('propagated-ot');
-                                                        const originalDropPostoNumber = parseInt(prevPostoId.replace('posto-p', ''));
-                                                        otCopy.dataset.originalPosto = `P${originalDropPostoNumber}`;
+                                                        otCopy.dataset.originalPosto = postoSoldaRefId; // Marca a origem como Posto de Solda
 
                                                         targetSlotElement.appendChild(otCopy);
                                                         targetSlotElement.classList.add('has-ot');
 
                                                         const originLabel = document.createElement('span');
                                                         originLabel.classList.add('origin-label');
-                                                        originLabel.textContent = `P${originalDropPostoNumber}`;
+                                                        originLabel.textContent = `Solda`;
                                                         targetSlotElement.appendChild(originLabel);
-
 
                                                         if (!slotContents[postoId]) slotContents[postoId] = {};
                                                         if (!slotContents[postoId][newConnectorId]) slotContents[postoId][newConnectorId] = {};
                                                         slotContents[postoId][newConnectorId][newSlotId] = { otId: otData.otId, isPropagated: true };
-                                                        break;
+                                                        break; // Achou e preencheu, pode sair do loop de conectores do posto de solda
                                                     }
                                                 }
                                             }
                                         }
+                                    }
+                                }
+
+                                // Se não achou no posto de solda (ou o posto atual é o de solda), procura nos postos numerados anteriores
+                                if (!targetSlotElement.querySelector('.ot')) { // Verifica se ainda está vazio
+                                    for (let i = 1; i < currentPostoNumber; i++) {
+                                        const prevPostoId = `posto-p${String(i).padStart(2, '0')}`;
+                                        if (slotContents[prevPostoId]) {
+                                            for (const prevConectorId in slotContents[prevPostoId]) {
+                                                const prevConectorElement = document.getElementById(prevConectorId);
+                                                if (prevConectorElement && prevConectorElement.dataset.connectorType === newConnectorType) {
+                                                    const prevSlotId = `${prevConectorId}-${slotPos.idSuffix || `slot${slotPos.idSuffix}`}`;
+                                                    const otData = slotContents[prevPostoId][prevConectorId][prevSlotId];
+
+                                                    if (otData && !otData.isPropagated) {
+                                                        const originalOtElement = otElementsMap.get(otData.otId);
+                                                        if (originalOtElement) {
+                                                            const otCopy = originalOtElement.cloneNode(true);
+                                                            otCopy.classList.remove('dragging');
+                                                            otCopy.style.position = '';
+                                                            otCopy.style.top = '';
+                                                            otCopy.style.left = '';
+                                                            otCopy.dataset.isPropagated = 'true';
+                                                            otCopy.draggable = false;
+
+                                                            otCopy.classList.add('propagated-ot');
+                                                            const originalDropPostoNumber = parseInt(prevPostoId.replace('posto-p', ''));
+                                                            otCopy.dataset.originalPosto = `P${originalDropPostoNumber}`;
+
+                                                            targetSlotElement.appendChild(otCopy);
+                                                            targetSlotElement.classList.add('has-ot');
+
+                                                            const originLabel = document.createElement('span');
+                                                            originLabel.classList.add('origin-label');
+                                                            originLabel.textContent = `P${originalDropPostoNumber}`;
+                                                            targetSlotElement.appendChild(originLabel);
+
+                                                            if (!slotContents[postoId]) slotContents[postoId] = {};
+                                                            if (!slotContents[postoId][newConnectorId]) slotContents[postoId][newConnectorId] = {};
+                                                            slotContents[postoId][newConnectorId][newSlotId] = { otId: otData.otId, isPropagated: true };
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if (targetSlotElement.querySelector('.ot')) break; // Se já preencheu, sai do loop de postos anteriores
                                     }
                                 }
                             }
@@ -1524,7 +1765,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateDetailedReport() {
         let reportOutput = "<h2>Relatório Detalhado de Tempos por Posto</h2>";
 
+        // Ordena os postoIds para que 'posto-solda-01' venha primeiro
         const allPostoIds = Object.keys(postoTimes).sort((a, b) => {
+            const isA_Solda = a === 'posto-solda-01';
+            const isB_Solda = b === 'posto-solda-01';
+
+            if (isA_Solda && !isB_Solda) return -1; // Solda vem antes de numerado
+            if (!isA_Solda && isB_Solda) return 1;  // Numerado vem depois de solda
+            if (isA_Solda && isB_Solda) return 0; // Se ambos são solda (não deve acontecer), não muda a ordem
+
+            // Se ambos são postos numerados, ordena numericamente
             const numA = parseInt(a.replace('posto-p', ''));
             const numB = parseInt(b.replace('posto-p', ''));
             return numA - numB;
@@ -1641,7 +1891,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sessionStorage.setItem('selectedPacoPostoIdForTab', selectedPostoId);
                 // `allOriginalOtsByPosto` já está sendo salvo no `sessionStorage`
                 // em `updateOriginalOtsByPosto` toda vez que algo muda nos slots.
-                window.open('paco-paco.html', '_blank'); // Abre em nova aba
+                // `window.open('paco-paco.html', '_blank'); // Abre em nova aba
                 modal.style.display = 'none';
                 modal.remove();
             } else {
