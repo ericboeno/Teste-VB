@@ -8,9 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const PACO_PACO_COLUMNS = 10;
     const PACO_PACO_CAVITY_SIZE = 60; // Tamanho em pixels de cada cavidade (para facilitar visualização)
 
-    let allOriginalOtsByPostoFromMain = {}; // { 'postoId': ['ot0190', 'ot0192', ...] } - Dados da aba principal
+    // allOriginalOtsByPostoFromMain agora contém Set de BASE OT IDs do main.js
+    let allOriginalOtsByPostoFromMain = {}; // { 'postoId': Set<baseOtId> } - Dados da aba principal
     // NEW: `pacoPacoStates` agora é persistido no localStorage para esta aba
-    let pacoPacoStates = {}; // { 'postoId': { 'cavityId': 'otId' } } - Estado da organização do Paco-Paco NA NOVA ABA
+    let pacoPacoStates = {}; // { 'postoId': { 'cavityId': { otId: 'ot0190', paletteOtId: 'paco-palette-posto-p01-ot0190-1' } } } - Estado da organização do Paco-Paco NA NOVA ABA
 
     let draggedOt = null; // OT sendo arrastada nesta aba
 
@@ -51,11 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Carrega os dados dos postos e OTs originais do sessionStorage (da página principal).
+     * MODIFICADO: Converte os arrays de OTs de volta para Sets para consistência.
      */
     function loadInitialDataFromMain() {
         const otsByPostoString = sessionStorage.getItem('allOriginalOtsByPosto');
         if (otsByPostoString) {
-            allOriginalOtsByPostoFromMain = JSON.parse(otsByPostoString);
+            const loadedData = JSON.parse(otsByPostoString);
+            // Converte os arrays carregados de volta para Sets
+            for (const postoId in loadedData) {
+                allOriginalOtsByPostoFromMain[postoId] = new Set(loadedData[postoId]);
+            }
         } else {
             console.warn('Nenhum dado de OTs por posto encontrado no sessionStorage. Verifique a página principal.');
             allOriginalOtsByPostoFromMain = {};
@@ -74,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Adiciona um "posto-solda-01" na lista de postos se não existir
         const postoSoldaId = 'posto-solda-01';
         if (!allOriginalOtsByPostoFromMain[postoSoldaId]) {
-            allOriginalOtsByPostoFromMain[postoSoldaId] = [];
+            allOriginalOtsByPostoFromMain[postoSoldaId] = new Set(); // Use Set aqui também
         }
         if (!pacoPacoStates[postoSoldaId]) {
             pacoPacoStates[postoSoldaId] = {};
@@ -84,7 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Gera a interface do Paco-Paco para um posto específico.
      * @param {string} postoId - O ID do posto (e.g., 'posto-p01' ou 'posto-solda-01').
-     * @param {Array<string>} initialOtsForThisPosto - Array de IDs das OTs originais para este posto.
+     * @param {Set<string>} initialOtsForThisPosto - Set de IDs das OTs base originais para este posto.
+     * MODIFICADO: Lógica de geração da paleta para gerar duas instâncias de cada BASE OT.
      */
     function createPacoPacoForPosto(postoId, initialOtsForThisPosto) {
         const postoDiv = document.createElement('div');
@@ -115,17 +122,41 @@ document.addEventListener('DOMContentLoaded', () => {
         availableOtsDiv.classList.add('paco-palette-ots');
         pacoPalette.appendChild(availableOtsDiv);
 
+        // otsInCavities agora armazena o paletteOtId (a instância específica)
         const otsInCavities = new Set();
         if (pacoPacoStates[postoId]) {
             for (const cavityId in pacoPacoStates[postoId]) {
-                otsInCavities.add(pacoPacoStates[postoId][cavityId].otId || pacoPacoStates[postoId][cavityId]);
+                const savedOtData = pacoPacoStates[postoId][cavityId];
+                if (typeof savedOtData === 'object' && savedOtData.paletteOtId) {
+                    otsInCavities.add(savedOtData.paletteOtId);
+                } else if (typeof savedOtData === 'string') {
+                    // Compatibilidade com estados antigos que só salvavam o otId
+                    // Tentamos inferir o paletteOtId, assumindo que foi a primeira instância
+                    console.warn(`Estado antigo do Paco-Paco detectado para ${cavityId}. Tentando inferir paletteOtId. Por favor, limpe o localStorage se houver inconsistências.`);
+                    // Tentativa de reconstruir o paletteOtId com base no otId salvo (base ou D)
+                    // A nova lógica de palette sempre usa o baseOtId
+                    const baseOtIdFromSaved = savedOtData.endsWith('D') ? savedOtData.slice(0, -1) : savedOtData;
+                    // Tenta a instância -1 e -2
+                    if (document.getElementById(`paco-palette-${postoId}-${baseOtIdFromSaved}-1`)) {
+                        otsInCavities.add(`paco-palette-${postoId}-${baseOtIdFromSaved}-1`);
+                    } else if (document.getElementById(`paco-palette-${postoId}-${baseOtIdFromSaved}-2`)) {
+                        otsInCavities.add(`paco-palette-${postoId}-${baseOtIdFromSaved}-2`);
+                    } else {
+                         // Fallback se não encontrar, para evitar erro, mas a OT não será ocultada corretamente
+                         otsInCavities.add(`paco-palette-${postoId}-${savedOtData}-1`);
+                    }
+                }
             }
         }
 
         // Combinar OTs dropadas com OTs de solda se for o posto de solda
-        let otsToDisplayInPalette = new Set(initialOtsForThisPosto);
+        // Agora, `otsToDisplayInPalette` será um Set de *base* OT IDs
+        let otsToDisplayInPalette = new Set(initialOtsForThisPosto); // Já é um Set de base OT IDs
         if (postoId === 'posto-solda-01') {
-            solderOts.forEach(ot => otsToDisplayInPalette.add(ot));
+            solderOts.forEach(ot => {
+                const baseOt = ot.endsWith('D') ? ot.slice(0, -1) : ot;
+                otsToDisplayInPalette.add(baseOt);
+            });
         }
 
         if (otsToDisplayInPalette.size === 0) {
@@ -133,67 +164,39 @@ document.addEventListener('DOMContentLoaded', () => {
             noOtsMsg.textContent = 'Nenhuma OT inserida neste posto na simulação ou disponível para solda.';
             availableOtsDiv.appendChild(noOtsMsg);
         } else {
-            Array.from(otsToDisplayInPalette).sort().forEach(otId => { // Ordena para consistência
-                // Criar a primeira OT (otId-1)
-                const otImg1 = document.createElement('img');
-                otImg1.src = `images/${otId.replace('ot', '')}.png`;
-                otImg1.alt = otId;
-                otImg1.id = `paco-palette-${postoId}-${otId}-1`; // ID único para a 1ª OT na paleta
-                otImg1.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
-                otImg1.draggable = true;
+            // Itera sobre as BASE OTs para gerar as duas instâncias
+            Array.from(otsToDisplayInPalette).sort().forEach(baseOtId => {
+                // Gerar duas instâncias para cada base OT
+                for (let i = 1; i <= 2; i++) {
+                    const paletteOtId = `paco-palette-${postoId}-${baseOtId}-${i}`;
+                    const otImg = document.createElement('img');
+                    otImg.src = `images/${baseOtId.replace('ot', '')}.png`; // Usa a imagem da BASE OT
+                    otImg.alt = baseOtId;
+                    otImg.id = paletteOtId; // ID único para a instância na paleta
+                    otImg.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
+                    otImg.draggable = true;
 
-                // Oculta a OT da paleta se o ID original da OT já estiver em alguma cavidade
-                if (otsInCavities.has(otId)) {
-                    otImg1.style.display = 'none';
-                    otImg1.draggable = false;
-                }
-
-                otImg1.addEventListener('dragstart', (e) => {
-                    draggedOt = e.target;
-                    e.dataTransfer.setData('text/plain', draggedOt.id); // Transfere o ID da OT na paleta
-                    e.dataTransfer.setData('application/json', JSON.stringify({
-                        otId: otId, // O ID original da OT (ex: 'ot0190')
-                        paletteOtId: draggedOt.id, // O ID da instância na paleta (ex: 'paco-palette-posto-p01-ot0190-1')
-                        sourcePostoId: postoId
-                    }));
-                    draggedOt.classList.add('dragging');
-                });
-                otImg1.addEventListener('dragend', () => {
-                    draggedOt.classList.remove('dragging');
-                    draggedOt = null;
-                });
-                availableOtsDiv.appendChild(otImg1);
-
-                // Criar a segunda OT (otId-2) - Duplicata (se não for ot0190D, ot0192D, etc. que já são "duplicatas")
-                // Ajuste para não criar duplicatas de OTs que já são variantes "D"
-                if (!otId.endsWith('D')) {
-                    const otImg2 = document.createElement('img');
-                    otImg2.src = `images/${otId.replace('ot', '')}.png`; // Usa a mesma imagem base para a duplicata visual
-                    otImg2.alt = otId;
-                    otImg2.id = `paco-palette-${postoId}-${otId}-2`; // ID único para a 2ª OT na paleta
-                    otImg2.classList.add('ot-base', 'draggable', 'paco-ot-draggable');
-                    otImg2.draggable = true;
-
-                    if (otsInCavities.has(otId)) {
-                        otImg2.style.display = 'none';
-                        otImg2.draggable = false;
+                    // Oculta a OT da paleta SE A INSTÂNCIA ESPECÍFICA já estiver em alguma cavidade
+                    if (otsInCavities.has(otImg.id)) {
+                        otImg.style.display = 'none';
+                        otImg.draggable = false;
                     }
 
-                    otImg2.addEventListener('dragstart', (e) => {
+                    otImg.addEventListener('dragstart', (e) => {
                         draggedOt = e.target;
                         e.dataTransfer.setData('text/plain', draggedOt.id); // Transfere o ID da OT na paleta
                         e.dataTransfer.setData('application/json', JSON.stringify({
-                            otId: otId, // O ID original da OT (ex: 'ot0190')
-                            paletteOtId: draggedOt.id, // O ID da instância na paleta (ex: 'paco-palette-posto-p01-ot0190-2')
+                            otId: baseOtId, // O ID ORIGINAL da OT (e.g., 'ot0190')
+                            paletteOtId: draggedOt.id, // O ID da instância na paleta (e.g., 'paco-palette-posto-p01-ot0190-1')
                             sourcePostoId: postoId
                         }));
                         draggedOt.classList.add('dragging');
                     });
-                    otImg2.addEventListener('dragend', () => {
+                    otImg.addEventListener('dragend', () => {
                         draggedOt.classList.remove('dragging');
                         draggedOt = null;
                     });
-                    availableOtsDiv.appendChild(otImg2);
+                    availableOtsDiv.appendChild(otImg);
                 }
             });
         }
@@ -235,27 +238,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Restaura OT se existir no estado salvo
                 if (pacoPacoStates[postoId] && pacoPacoStates[postoId][cavityId]) {
-                    const savedOtData = pacoPacoStates[postoId][cavityId]; // Pode ser apenas o ID da OT ou um objeto {otId, paletteOtId}
-                    let savedOtId;
-                    let savedPaletteOtId;
+                    const savedOtData = pacoPacoStates[postoId][cavityId];
+                    let savedOtId; // O ID base da OT (e.g., ot0190)
+                    let savedPaletteOtId; // O ID da instância na paleta (e.g., paco-palette-posto-p01-ot0190-1)
 
                     if (typeof savedOtData === 'object') {
                         savedOtId = savedOtData.otId;
                         savedPaletteOtId = savedOtData.paletteOtId;
-                    } else { // Compatibilidade com estados antigos
+                    } else { // Compatibilidade com estados antigos que só salvavam o otId
                         savedOtId = savedOtData;
-                        // Tentar inferir o paletteOtId, ou deixar em branco se não for possível.
-                        // Poderíamos procurar por ambas as instâncias '-1' ou '-2' na paleta.
-                        savedPaletteOtId = `paco-palette-${postoId}-${savedOtId}-1`; // Assume a primeira instância se não houver um ID salvo
+                        // Tenta inferir o paletteOtId. Isso é um fallback para dados antigos.
+                        const baseOtIdFromSaved = savedOtId.endsWith('D') ? savedOtId.slice(0, -1) : savedOtId;
+                        savedPaletteOtId = `paco-palette-${postoId}-${baseOtIdFromSaved}-1`;
                         if (!document.getElementById(savedPaletteOtId)) {
-                             savedPaletteOtId = `paco-palette-${postoId}-${savedOtId}-2`;
+                             savedPaletteOtId = `paco-palette-${postoId}-${baseOtIdFromSaved}-2`;
+                             if (!document.getElementById(savedPaletteOtId)) {
+                                 console.warn(`Could not find a matching palette ID for old saved state: ${savedOtId}`);
+                                 // Se ainda não encontrou, talvez seja um otId sem o 'ot' prefixo ou outro formato antigo
+                                 savedPaletteOtId = `paco-palette-${postoId}-${savedOtId}-1`; // Último esforço
+                             }
                         }
                     }
 
                     const otCopy = document.createElement('img');
-                    otCopy.src = `images/${savedOtId.replace('ot', '')}.png`;
+                    otCopy.src = `images/${savedOtId.replace('ot', '')}.png`; // Usa a imagem base
                     otCopy.alt = savedOtId;
-                    otCopy.id = `paco-cavity-${postoId}-${savedOtId}`; // ID único na cavidade
+                    otCopy.id = `paco-cavity-${postoId}-${savedOtId}-${Date.now()}`; // ID único na cavidade
                     otCopy.classList.add('paco-ot-in-cavity');
                     otCopy.draggable = false;
                     otCopy.dataset.originalPaletteOtId = savedPaletteOtId; // Guarda o ID da OT original da paleta
@@ -301,8 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     cavityDiv.classList.remove('drag-over');
 
                     const otDataTransfer = JSON.parse(e.dataTransfer.getData('application/json'));
-                    const droppedOtId = otDataTransfer.otId; // ID original da OT (ex: 'ot0190')
-                    const droppedPaletteOtId = otDataTransfer.paletteOtId; // ID da instância da OT na paleta (ex: 'paco-palette-posto-p01-ot0190-1')
+                    const droppedOtId = otDataTransfer.otId; // ID ORIGINAL da OT (e.g., 'ot0190')
+                    const droppedPaletteOtId = otDataTransfer.paletteOtId; // ID da instância da OT na paleta (e.g., 'paco-palette-posto-p01-ot0190-1')
                     const sourcePostoIdFromDrag = otDataTransfer.sourcePostoId;
 
                     // Verifica se a OT está vindo da paleta do posto correto e se a cavidade está vazia
@@ -317,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const otCopy = document.createElement('img');
                         otCopy.src = `images/${droppedOtId.replace('ot', '')}.png`;
                         otCopy.alt = droppedOtId;
-                        otCopy.id = `paco-cavity-${postoId}-${droppedOtId}`; // ID único na cavidade
+                        otCopy.id = `paco-cavity-${postoId}-${droppedOtId}-${Date.now()}`; // ID único na cavidade
                         otCopy.classList.add('paco-ot-in-cavity');
                         otCopy.draggable = false; // Não arrastável da cavidade (por clique para remover)
                         otCopy.dataset.originalPaletteOtId = droppedPaletteOtId; // Guarda o ID da OT original da paleta
@@ -375,7 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         postoIds.forEach(postoId => {
-            const otsForThisPosto = allOriginalOtsByPostoFromMain[postoId] || [];
+            // initialOtsForThisPosto agora é um Set de base OT IDs
+            const otsForThisPosto = allOriginalOtsByPostoFromMain[postoId] || new Set();
             createPacoPacoForPosto(postoId, otsForThisPosto);
         });
     }
